@@ -16,7 +16,8 @@ def main():
  
    option = sys.argv[1]
 
-   if (option == "-r"):
+   ## READ OPTION
+   if (option == "--read"):
       
       if (len(sys.argv) != 4):
          sys.exit()
@@ -49,7 +50,8 @@ def main():
                print('{} for {} not found'.format(info,target))
             break
             
-   elif (option == "-a"):
+   ## SHOWALL OPTION        
+   elif (option == "--showall"):
 	   
       if (len(sys.argv) != 3):
          print('Wrong number of arguments')
@@ -73,8 +75,9 @@ def main():
          if (line[0] == target):
             print(line)
             break
-		  
-   elif (option == "-w"):
+	
+	## WRITE OPTION	  
+   elif (option == "--write"):
    
       if (len(sys.argv) != 5):
          print('Wrong number of arguments')
