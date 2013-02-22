@@ -1,145 +1,79 @@
 #!/usr/bin/python3
 
+import argparse
+import sqlite3 as sqlite
 import os
 import sys
 
 def decrypt(file):
-   os.system('gpg {} >/dev/null 2>&1'.format(file))   
+	os.system('gpg {} >/dev/null 2>&1'.format(file))   
 
 def encrypt(file):
-   os.system('gpg -c --yes {} >/dev/null 2>&1'.format(file))
+	os.system('gpg -c --yes {} >/dev/null 2>&1'.format(file))
 
 def main(): 
 
-   if (len(sys.argv) < 2):
-      sys.exit()
- 
-   option = sys.argv[1]
+	# Set up the argument parser
+	parser = argparse.ArgumentParser('lockbox.py')
+	parser.add_argument('account', nargs='?', help='Retrieve the data associated with your account')
+	parser.add_argument('-a', '--add', dest='add', nargs=3, metavar=('account', 'key', 'val'), help='Add data to your account')
+	parser.add_argument('-r', '--remove', dest='remove', nargs=2, metavar=('account', 'key'), help='Remove data from your account')
+	args = parser.parse_args()
 
-   ## READ OPTION
-   if (option == "--read"):
-      
-      if (len(sys.argv) != 4):
-         sys.exit()
-		
-      decrypt('data.gpg')
-      try:
-         data = open('data', 'r')
-      except:
-         print('Could not open data')
-         sys.exit()
-		
-      target = sys.argv[2]
-      info = sys.argv[3]
+	db = None
+	modified = False
 
-      while 1:
-         line = data.readline()
-         if not line:
-            print('Info for {} not found'.format(target))
-            break
+	try:
+		# decrypt file if it exists
+		decrypt('accounts.db.gpg')
 
-         line = line.split()
-         if (line[0] == target):
-            found = False
-            for i in range(1,len(line),2):
-               if (line[i] == info):
-                  print(line[i+1])
-                  found = True
-                  break
-            if (not found):
-               print('{} for {} not found'.format(info,target))
-            break
-            
-   ## SHOWALL OPTION        
-   elif (option == "--showall"):
-	   
-      if (len(sys.argv) != 3):
-         print('Wrong number of arguments')
-         sys.exit()
-	      
-      decrypt('data.gpg')
-      try:
-	      data = open('data', 'r')
-      except:
-         print('Could not open data')
-         sys.exit()
-	   
-      target = sys.argv[2]
-	   
-      while 1:
-         line = data.readline()
-         if not line:
-            print('Info for {} not found'.format(target))
-            break
-         line = line.split()
-         if (line[0] == target):
-            print(line)
-            break
-	
-	## WRITE OPTION	  
-   elif (option == "--write"):
-   
-      if (len(sys.argv) != 5):
-         print('Wrong number of arguments')
-         sys.exit()
-         
-      decrypt('data.gpg')
-      try:
-         data = open('data', 'r')
-      except:
-         print('Could not open data')
-         sys.exit()   
+		# connect to database
+		db = sqlite.connect('accounts.db')
+		cs = db.cursor()
 
-      target = sys.argv[2]
-      info = sys.argv[3]
-      value = sys.argv[4]
+		# read data
+		account = args.account;
+		if (account):
+			print('[ ' + account + ' ]')
+			try:
+				rows = cs.execute('SELECT * FROM ' + account).fetchall()
+				for row in rows:
+					print(' : '.join(str(x) for x in row))
+			except:
+				print("Account information not found")
 
-      temp = open('temp', 'w')
+		# add data
+		elif (args.add):
+			acc = args.add[0]
+			key = args.add[1]
+			val = args.add[2]
+			cs.execute('CREATE TABLE IF NOT EXISTS ' + acc + '(key TEXT PRIMARY KEY, val TEXT )')
+			cs.execute('INSERT OR REPLACE INTO ' + acc + ' VALUES (\''+ key +'\',\''+val +'\')')
+			modified = True
 
-      found = False
-      
-      while 1:
-         line = data.readline()
-         if not line:
-            break	
-         line = line.split()
-         if (line[0] == target):
-            print(target, end=" ", file=temp)
-            for i in range(1,len(line),2):
-               print(line[i], end=" ",file=temp)
-               if (line[i] == info):
-                  if (i == len(line)-2):
-                     print(value,temp)
-                  else:
-                     print(value,end=" ",file=temp)
-                     found = True
-               else:
-                  if (found and i == len(line)-2):
-                     print(line[i+1],file=temp)
-                  else:
-                     print(line[i+1],end=" ",file=temp)
-                
-            if (not found):
-               print(info,end=" ", file=temp)
-               print(value,file=temp)
-               found = True   
-         else:
-            print(line, file=temp)
-      
-      if (not found):
-         print(target, end=" ", file=temp)
-         print(info, end=" ", file=temp)
-         print(value, file=temp)
+		# remove data
+		elif (args.remove):
+			acc = args.remove[0]
+			key = args.remove[1]
+			cs.execute('DELETE FROM ' + acc + ' WHERE key=\'' + key + '\'')
+			modified = True
 
-      temp.close()
-      os.system('mv temp data')
-      encrypt('data')
-      
-   else:
-      print('Invalid Option: {}'.format(option))
+		# save changes
+		db.commit()
+		# re-encrypt the database
+		if (modified):
+			encrypt('accounts.db')
 
-   os.system('rm data')
-   
-if __name__ == "__main__":
-    main()
 
+	# Handle db exception - OOPS
+	except sqlite.Error as e:
+		print("Error " + e.args[0])
+
+	finally:
+		if db:
+			# close the db
+			db.close()
+			# remove unencypted db
+			os.system('rm accounts.db')
+			
+main()
