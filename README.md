@@ -10,16 +10,10 @@ GNU Privacy Guard (GPG)
 
 ## How-To ##
 
-	./lockbox.py account [-a account key val] [-r account key]
-	
-	   -a
-	--add [ account key val ] 
-		
+	./lockbox.py account [-a account key val] [-r account key]		
+	-a --add [ account key val ]	
 		Add new key with value val to your account
-
-	    -r
-      --remove [ account key ]
-
+	-r --remove [ account key ]
 		Remove key from account
 
 ## License ##
